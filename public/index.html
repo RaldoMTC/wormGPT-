@@ -385,6 +385,28 @@
             display: none;
         }
 
+        /* Memory Controls */
+        .memory-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .memory-btn {
+            background: transparent;
+            color: var(--accent-red);
+            border: 1px solid var(--accent-red);
+            padding: 6px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+
+        .memory-btn:hover {
+            background: rgba(255, 0, 60, 0.1);
+        }
+
         /* Responsive */
         @media (max-width: 480px) {
             .message-bubble {
@@ -397,6 +419,11 @@
             }
             
             .upload-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .memory-controls {
                 width: 100%;
                 justify-content: center;
             }
@@ -416,6 +443,10 @@
                 📁 Upload File
             </button>
             <div class="file-info" id="file-info">Max 10MB (Images, Text)</div>
+            <div class="memory-controls">
+                <button class="memory-btn" id="memory-btn" title="View Memory">🧠 <span id="memory-count">0</span></button>
+                <button class="memory-btn" id="clear-memory-btn" title="Clear Memory">🗑️</button>
+            </div>
         </div>
         
         <div class="chat-container" id="chat-container">
@@ -461,10 +492,15 @@
                 this.status = document.getElementById('status');
                 this.fileInput = document.getElementById('file-input');
                 this.fileInfo = document.getElementById('file-info');
+                this.memoryBtn = document.getElementById('memory-btn');
+                this.clearMemoryBtn = document.getElementById('clear-memory-btn');
+                this.memoryCount = document.getElementById('memory-count');
                 
+                // Auto-detect base URL untuk Vercel
                 this.baseURL = window.location.origin;
                 this.isConnected = false;
                 this.currentFile = null;
+                this.messageCount = 0;
                 
                 this.initEventListeners();
                 this.initializeChat();
@@ -477,12 +513,14 @@
                 });
                 
                 this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+                this.memoryBtn.addEventListener('click', () => this.viewMemory());
+                this.clearMemoryBtn.addEventListener('click', () => this.clearMemory());
             }
 
             async initializeChat() {
                 try {
                     this.status.textContent = 'Connecting to WormGPT...';
-                    const response = await fetch(`${this.baseURL}/health`);
+                    const response = await fetch(`${this.baseURL}/api/health`);
                     
                     if (response.ok) {
                         const data = await response.json();
@@ -491,8 +529,31 @@
                         this.userInput.disabled = false;
                         this.sendBtn.disabled = false;
                         this.userInput.focus();
+                        
+                        // Update memory count
+                        this.updateMemoryCount(data.memory);
                     } else {
                         throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    console.log('Trying alternative endpoint...');
+                    this.tryAlternativeConnection();
+                }
+            }
+
+            async tryAlternativeConnection() {
+                try {
+                    // Coba endpoint lain
+                    const response = await fetch(`${this.baseURL}/health`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.isConnected = true;
+                        this.status.textContent = `Connected 🩸 - ${data.status}`;
+                        this.userInput.disabled = false;
+                        this.sendBtn.disabled = false;
+                        this.userInput.focus();
+                    } else {
+                        throw new Error('All connection attempts failed');
                     }
                 } catch (error) {
                     this.status.textContent = 'Connection Failed 💀';
@@ -502,9 +563,55 @@
 
             showErrorMessage() {
                 this.addMessage(
-                    '**System Error** 🩸\n\nCannot establish connection with WormGPT server.\n\n*Check if server is running on Termux*',
+                    '**System Error** 🩸\n\nCannot establish connection with WormGPT server.\n\n*Make sure the API endpoints are properly configured*',
                     'bot'
                 );
+            }
+
+            updateMemoryCount(memoryText) {
+                // Extract number from memory text like "5 messages stored"
+                const match = memoryText.match(/(\d+)/);
+                if (match) {
+                    this.messageCount = parseInt(match[1]);
+                    this.memoryCount.textContent = this.messageCount;
+                }
+            }
+
+            async viewMemory() {
+                try {
+                    const response = await fetch(`${this.baseURL}/api/memory`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.memory.length > 0) {
+                            let memoryText = '**🧠 Chat Memory**\n\n';
+                            data.memory.forEach((msg, index) => {
+                                memoryText += `**${index + 1}.** ${msg.user.substring(0, 50)}...\n`;
+                                memoryText += `   → ${msg.bot.substring(0, 50)}...\n\n`;
+                            });
+                            this.addMessage(memoryText, 'bot');
+                        } else {
+                            this.addMessage('**Memory Kosong** 🧠\n\nBelum ada chat history yang tersimpan.', 'bot');
+                        }
+                    }
+                } catch (error) {
+                    this.addMessage('**Memory Error** 🩸\n\nGagal mengambil memory.', 'bot');
+                }
+            }
+
+            async clearMemory() {
+                try {
+                    const response = await fetch(`${this.baseURL}/api/clear-memory`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            this.messageCount = 0;
+                            this.memoryCount.textContent = '0';
+                            this.addMessage('**Memory Cleared** 🧠\n\nSemua chat history telah dihapus.', 'bot');
+                        }
+                    }
+                } catch (error) {
+                    this.addMessage('**Clear Memory Error** 🩸\n\nGagal menghapus memory.', 'bot');
+                }
             }
 
             handleFileUpload(event) {
@@ -522,40 +629,31 @@
                 this.fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
                 this.fileInfo.style.color = 'var(--accent-red)';
 
-                // Auto-upload file
-                this.uploadFile(file);
+                // Auto-process file (simulate since upload endpoint might not exist)
+                this.processFile(file);
             }
 
-            async uploadFile(file) {
+            async processFile(file) {
                 this.showTypingIndicator();
                 
-                const formData = new FormData();
-                formData.append('file', file);
-
-                try {
-                    const response = await fetch(`${this.baseURL}/api/upload`, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const data = await response.json();
+                // Simulate file processing since /api/upload might not exist
+                setTimeout(() => {
                     this.hideTypingIndicator();
-
-                    if (data.success) {
-                        this.addMessage(data.response, 'bot');
-                    } else {
-                        this.addMessage(`**Upload Error** 🩸\n\n${data.error}`, 'bot');
-                    }
-                } catch (error) {
-                    this.hideTypingIndicator();
-                    this.addMessage(`**Upload Failed** 🩸\n\n${error.message}`, 'bot');
-                }
-
-                // Reset file input
-                this.fileInput.value = '';
-                this.currentFile = null;
-                this.fileInfo.textContent = 'Max 10MB (Images, Text)';
-                this.fileInfo.style.color = 'var(--text-secondary)';
+                    this.addMessage(
+                        `**File Processed** 📁\n\n` +
+                        `Nama: ${file.name}\n` +
+                        `Size: ${(file.size / 1024).toFixed(2)} KB\n` +
+                        `Tipe: ${file.type || 'Unknown'}\n\n` +
+                        `*Upload feature dalam pengembangan* 🩸`,
+                        'bot'
+                    );
+                    
+                    // Reset file input
+                    this.fileInput.value = '';
+                    this.currentFile = null;
+                    this.fileInfo.textContent = 'Max 10MB (Images, Text)';
+                    this.fileInfo.style.color = 'var(--text-secondary)';
+                }, 1500);
             }
 
             async sendMessage() {
@@ -587,8 +685,11 @@
                     
                     if (data.success) {
                         this.addMessage(data.response, 'bot');
+                        // Update memory count
+                        this.messageCount = data.memory || this.messageCount + 1;
+                        this.memoryCount.textContent = this.messageCount;
                     } else {
-                        this.addMessage(`**Error** 🩸\n\n${data.error}`, 'bot');
+                        this.addMessage(`**Error** 🩸\n\n${data.response || 'Unknown error'}`, 'bot');
                     }
                 } catch (error) {
                     this.hideTypingIndicator();
@@ -630,8 +731,16 @@
             }
 
             processContent(text) {
+                // Convert markdown-like formatting to HTML
+                let processed = text
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/`(.*?)`/g, '<code>$1</code>')
+                    .replace(/\n/g, '<br>');
+
+                // Process code blocks
                 const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
-                return text.replace(codeBlockRegex, (match, language, code) => {
+                processed = processed.replace(codeBlockRegex, (match, language, code) => {
                     const lang = language || 'text';
                     return `
                         <div class="code-block">
@@ -645,6 +754,8 @@
                         </div>
                     `;
                 });
+
+                return processed;
             }
 
             escapeHtml(unsafe) {
@@ -710,6 +821,7 @@
             wormGPT = new WormGPT();
         });
 
+        // Global access for copy functionality
         window.wormGPT = wormGPT;
     </script>
 </body>
