@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WormGPT 🩸 - Dark Edition</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/monokai-sublime.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --dark-bg: #0a0a0a;
+            --darker-bg: #000000;
+            --accent-red: #ff003c;
+            --accent-dark-red: #cc0030;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --card-bg: #1a1a1a;
+            --border-color: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--darker-bg) 0%, #1a0000 100%);
+            min-height: 100vh;
+            padding: 10px;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: var(--dark-bg);
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(255, 0, 60, 0.3);
+            overflow: hidden;
+            height: 95vh;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-color);
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--darker-bg) 0%, #1a0000 100%);
+            color: var(--text-primary);
+            padding: 15px;
+            text-align: center;
+            flex-shrink: 0;
+            border-bottom: 2px solid var(--accent-red);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-red), transparent);
+        }
+
+        .header h1 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+            background: linear-gradient(45deg, #fff, var(--accent-red));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(255, 0, 60, 0.5);
+        }
+
+        .status {
+            font-size: 0.8em;
+            opacity: 0.8;
+            margin-top: 5px;
+            color: var(--accent-red);
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: var(--darker-bg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .user-message {
+            justify-content: flex-end;
+        }
+
+        .bot-message {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+        }
+
+        .user-bubble {
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-dark-red));
+            color: white;
+            border-bottom-right-radius: 5px;
+            box-shadow: 0 2px 10px rgba(255, 0, 60, 0.3);
+        }
+
+        .bot-bubble {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .bot-bubble::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -1px;
+            width: 3px;
+            height: 100%;
+            background: var(--accent-red);
+            border-radius: 3px;
+        }
+
+        /* Code Block Styling */
+        .code-block {
+            position: relative;
+            margin: 12px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .code-header {
+            background: #2d2d2d;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #404040;
+        }
+
+        .code-language {
+            color: var(--accent-red);
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        .copy-btn {
+            background: var(--accent-red);
+            color: white;
+            border: none;
+            padding: 4px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.3s;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent-dark-red);
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: #00cc66;
+        }
+
+        .code-content {
+            padding: 12px;
+            overflow-x: auto;
+        }
+
+        .code-content pre {
+            margin: 0;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            padding: 10px 15px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .upload-btn {
+            background: transparent;
+            color: var(--accent-red);
+            border: 1px dashed var(--accent-red);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .upload-btn:hover {
+            background: rgba(255, 0, 60, 0.1);
+            border-style: solid;
+        }
+
+        .file-info {
+            font-size: 11px;
+            color: var(--text-secondary);
+            flex: 1;
+        }
+
+        /* Input Container */
+        .input-container {
+            padding: 15px;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            outline: none;
+            font-size: 14px;
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            transition: all 0.3s;
+        }
+
+        #user-input:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 10px rgba(255, 0, 60, 0.3);
+        }
+
+        #user-input::placeholder {
+            color: #666;
+        }
+
+        #send-btn {
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-dark-red));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        #send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 0, 60, 0.4);
+        }
+
+        #send-btn:disabled {
+            background: #666;
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Typing Indicator */
+        .typing-indicator {
+            display: none;
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            border-bottom-left-radius: 5px;
+            max-width: 80%;
+            margin-bottom: 10px;
+            align-self: flex-start;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-red);
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        /* Worm Icon */
+        .worm-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-red), var(--accent-dark-red));
+            border-radius: 50%;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            flex-shrink: 0;
+            box-shadow: 0 2px 10px rgba(255, 0, 60, 0.5);
+            border: 2px solid var(--accent-red);
+        }
+
+        .time-stamp {
+            font-size: 0.7em;
+            opacity: 0.6;
+            margin-top: 8px;
+            text-align: right;
+            color: var(--text-secondary);
+        }
+
+        /* Animations */
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px var(--accent-red); }
+            50% { box-shadow: 0 0 20px var(--accent-red); }
+        }
+
+        /* Scrollbar */
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: var(--accent-red);
+            border-radius: 4px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-dark-red);
+        }
+
+        /* File Upload Hidden Input */
+        #file-input {
+            display: none;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .message-bubble {
+                max-width: 90%;
+            }
+            
+            .upload-section {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .upload-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🩸 WormGPT - Dark Edition</h1>
+            <div class="status" id="status">Initializing System...</div>
+        </div>
+        
+        <div class="upload-section">
+            <input type="file" id="file-input" accept="image/*,text/*">
+            <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+                📁 Upload File
+            </button>
+            <div class="file-info" id="file-info">Max 10MB (Images, Text)</div>
+        </div>
+        
+        <div class="chat-container" id="chat-container">
+            <div class="message bot-message">
+                <div class="worm-icon">W</div>
+                <div class="message-bubble bot-bubble">
+                    <strong>WormGPT 🩸 Online</strong><br><br>
+                    System initialized. Dark theme activated.<br>
+                    Ready for chat, code, and file analysis.<br><br>
+                    <em>Upload files or start coding...</em>
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" disabled>
+            <button id="send-btn" disabled>Send</button>
+        </div>
+    </div>
+
+    <!-- Highlight.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+
+    <script>
+        class WormGPT {
+            constructor() {
+                this.chatContainer = document.getElementById('chat-container');
+                this.userInput = document.getElementById('user-input');
+                this.sendBtn = document.getElementById('send-btn');
+                this.typingIndicator = document.getElementById('typing-indicator');
+                this.status = document.getElementById('status');
+                this.fileInput = document.getElementById('file-input');
+                this.fileInfo = document.getElementById('file-info');
+                
+                this.baseURL = window.location.origin;
+                this.isConnected = false;
+                this.currentFile = null;
+                
+                this.initEventListeners();
+                this.initializeChat();
+            }
+
+            initEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.userInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
+                
+                this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+            }
+
+            async initializeChat() {
+                try {
+                    this.status.textContent = 'Connecting to WormGPT...';
+                    const response = await fetch(`${this.baseURL}/health`);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.isConnected = true;
+                        this.status.textContent = `Connected 🩸 - ${data.status}`;
+                        this.userInput.disabled = false;
+                        this.sendBtn.disabled = false;
+                        this.userInput.focus();
+                    } else {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    this.status.textContent = 'Connection Failed 💀';
+                    this.showErrorMessage();
+                }
+            }
+
+            showErrorMessage() {
+                this.addMessage(
+                    '**System Error** 🩸\n\nCannot establish connection with WormGPT server.\n\n*Check if server is running on Termux*',
+                    'bot'
+                );
+            }
+
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                // Validate file size (10MB)
+                if (file.size > 10 * 1024 * 1024) {
+                    this.fileInfo.textContent = 'File too large! Max 10MB';
+                    this.fileInfo.style.color = 'var(--accent-red)';
+                    return;
+                }
+
+                this.currentFile = file;
+                this.fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
+                this.fileInfo.style.color = 'var(--accent-red)';
+
+                // Auto-upload file
+                this.uploadFile(file);
+            }
+
+            async uploadFile(file) {
+                this.showTypingIndicator();
+                
+                const formData = new FormData();
+                formData.append('file', file);
+
+                try {
+                    const response = await fetch(`${this.baseURL}/api/upload`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+                    this.hideTypingIndicator();
+
+                    if (data.success) {
+                        this.addMessage(data.response, 'bot');
+                    } else {
+                        this.addMessage(`**Upload Error** 🩸\n\n${data.error}`, 'bot');
+                    }
+                } catch (error) {
+                    this.hideTypingIndicator();
+                    this.addMessage(`**Upload Failed** 🩸\n\n${error.message}`, 'bot');
+                }
+
+                // Reset file input
+                this.fileInput.value = '';
+                this.currentFile = null;
+                this.fileInfo.textContent = 'Max 10MB (Images, Text)';
+                this.fileInfo.style.color = 'var(--text-secondary)';
+            }
+
+            async sendMessage() {
+                const message = this.userInput.value.trim();
+                if (!message || !this.isConnected) return;
+
+                this.addMessage(message, 'user');
+                this.userInput.value = '';
+                this.sendBtn.disabled = true;
+                this.userInput.disabled = true;
+                
+                this.showTypingIndicator();
+                
+                try {
+                    const response = await fetch(`${this.baseURL}/api/chat`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    this.hideTypingIndicator();
+                    
+                    if (data.success) {
+                        this.addMessage(data.response, 'bot');
+                    } else {
+                        this.addMessage(`**Error** 🩸\n\n${data.error}`, 'bot');
+                    }
+                } catch (error) {
+                    this.hideTypingIndicator();
+                    this.addMessage(`**Network Error** 🩸\n\n${error.message}`, 'bot');
+                }
+                
+                this.sendBtn.disabled = false;
+                this.userInput.disabled = false;
+                this.userInput.focus();
+            }
+
+            addMessage(text, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                
+                if (sender === 'bot') {
+                    const wormIcon = document.createElement('div');
+                    wormIcon.className = 'worm-icon';
+                    wormIcon.textContent = 'W';
+                    messageDiv.appendChild(wormIcon);
+                }
+                
+                const bubble = document.createElement('div');
+                bubble.className = `message-bubble ${sender}-bubble`;
+                
+                const processedContent = this.processContent(text);
+                bubble.innerHTML = processedContent;
+                
+                const timestamp = document.createElement('div');
+                timestamp.className = 'time-stamp';
+                timestamp.textContent = this.getCurrentTime();
+                
+                bubble.appendChild(timestamp);
+                messageDiv.appendChild(bubble);
+                this.chatContainer.appendChild(messageDiv);
+                
+                this.applySyntaxHighlighting(bubble);
+                this.scrollToBottom();
+            }
+
+            processContent(text) {
+                const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+                return text.replace(codeBlockRegex, (match, language, code) => {
+                    const lang = language || 'text';
+                    return `
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-language">${lang.toUpperCase()}</span>
+                                <button class="copy-btn" onclick="wormGPT.copyCode(this)">Copy</button>
+                            </div>
+                            <div class="code-content">
+                                <pre><code class="language-${lang}">${this.escapeHtml(code.trim())}</code></pre>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            escapeHtml(unsafe) {
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }
+
+            applySyntaxHighlighting(element) {
+                if (typeof hljs !== 'undefined') {
+                    element.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                }
+            }
+
+            copyCode(button) {
+                const codeBlock = button.closest('.code-block');
+                const codeContent = codeBlock.querySelector('code');
+                const codeText = codeContent.textContent;
+                
+                navigator.clipboard.writeText(codeText).then(() => {
+                    button.textContent = 'Copied!';
+                    button.classList.add('copied');
+                    setTimeout(() => {
+                        button.textContent = 'Copy';
+                        button.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+
+            getCurrentTime() {
+                const now = new Date();
+                return now.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false
+                });
+            }
+
+            showTypingIndicator() {
+                this.typingIndicator.style.display = 'block';
+                this.scrollToBottom();
+            }
+
+            hideTypingIndicator() {
+                this.typingIndicator.style.display = 'none';
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatContainer.scrollTop = this.chatContainer.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // Initialize WormGPT
+        let wormGPT;
+        document.addEventListener('DOMContentLoaded', () => {
+            wormGPT = new WormGPT();
+        });
+
+        window.wormGPT = wormGPT;
+    </script>
+</body>
+</html>
